@@ -857,6 +857,25 @@ body {
   font-weight: 800;
 }
 
+.objective-panel {
+  position: absolute;
+  left: 18px;
+  top: 236px;
+  z-index: 7;
+  min-height: 42px;
+  width: min(420px, calc(100vw - 36px));
+  border: 2px solid rgba(255, 255, 255, 0.32);
+  border-radius: 8px;
+  padding: 9px 14px;
+  background: rgba(20, 25, 34, 0.88);
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1.2;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
 .touch-controls {
   position: absolute;
   left: 24px;
@@ -967,8 +986,8 @@ body.touch-active .overlay:not(.hidden) ~ .touch-controls,
   }
 
   .weapon-panel {
-    min-height: 50px;
-    padding: 6px 8px;
+    min-height: 38px;
+    padding: 5px 7px;
   }
 
   .weapon-panel > span {
@@ -1020,8 +1039,42 @@ body.touch-active .overlay:not(.hidden) ~ .touch-controls,
     font-size: 11px;
   }
 
+  .weapon-panel:has(.empty-relic),
+  .weapon-panel:has(.empty-part) {
+    display: none;
+  }
+
+  .weapon-panel:not(.part-panel):has(#weaponList) {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    column-gap: 8px;
+  }
+
+  .weapon-panel:not(.part-panel):has(#weaponList) > span {
+    min-width: 28px;
+  }
+
+  .weapon-panel:not(.part-panel):has(#weaponList) #weaponList {
+    margin-top: 0;
+  }
+
   .tooltip {
     width: min(300px, calc(100vw - 24px));
+  }
+
+  .objective-panel {
+    top: 151px;
+    left: 50%;
+    width: min(330px, calc(100vw - 20px));
+    min-height: 28px;
+    border-width: 1px;
+    border-radius: 6px;
+    padding: 5px 9px;
+    font-size: 13px;
+    text-align: center;
+    transform: translateX(-50%);
   }
 
   .choice-card {

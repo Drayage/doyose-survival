@@ -31,6 +31,7 @@ export class UIManager {
     this.weaponList = document.querySelector("#weaponList");
     this.relicList = document.querySelector("#relicList");
     this.partList = document.querySelector("#partList");
+    this.objectivePanel = document.querySelector("#objectivePanel");
     this.tooltip = document.querySelector("#tooltip");
     this.weaponSignature = "";
     this.relicSignature = "";
@@ -238,6 +239,7 @@ export class UIManager {
     this.killText.textContent = waveManager.killsThisWave;
     this.timeText.textContent = formatSeconds(waveManager.elapsed);
     this.positionText.textContent = `${Math.round(player.x)}, ${Math.round(player.y)}`;
+    this.updateObjectivePanel();
 
     const relicRows = relicManager.getOwnedRelicRows();
     const partRows = partManager.getPartRows();
@@ -482,6 +484,20 @@ export class UIManager {
 
   hideTooltip() {
     this.tooltip.classList.add("hidden");
+  }
+
+  updateObjectivePanel() {
+    if (!this.objectivePanel) {
+      return;
+    }
+
+    if (this.game.state !== "playing" || !this.game.waveManager.currentWave) {
+      this.objectivePanel.classList.add("hidden");
+      return;
+    }
+
+    this.objectivePanel.textContent = this.game.waveManager.getObjectiveText();
+    this.objectivePanel.classList.remove("hidden");
   }
 
   normalizeRarity(rarity) {

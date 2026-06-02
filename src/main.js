@@ -1,4 +1,4 @@
-import { Game } from "./Game.js?v=mobile-pages";
+import { Game } from "./Game.js?v=mobile-world-scale";
 
 const canvas = document.querySelector("#gameCanvas");
 const game = new Game(canvas);

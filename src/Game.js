@@ -354,10 +354,12 @@ export class Game {
     const side = Math.floor(Math.random() * 4);
     let x = 0;
     let y = 0;
+    const viewWidth = this.getViewWidth();
+    const viewHeight = this.getViewHeight();
     const left = this.camera.x;
-    const right = this.camera.x + this.width;
+    const right = this.camera.x + viewWidth;
     const top = this.camera.y;
-    const bottom = this.camera.y + this.height;
+    const bottom = this.camera.y + viewHeight;
 
     if (side === 0) {
       x = randomBetween(left, right);
@@ -474,11 +476,15 @@ export class Game {
   }
 
   render() {
+    const renderScale = this.getRenderScale();
     const renderCamera = this.getRenderCamera();
+    const viewWidth = this.getViewWidth();
+    const viewHeight = this.getViewHeight();
     this.ctx.clearRect(0, 0, this.width, this.height);
-    this.renderArena(renderCamera);
 
     this.ctx.save();
+    this.ctx.scale(renderScale, renderScale);
+    this.renderArena(renderCamera, viewWidth, viewHeight);
     this.ctx.translate(-renderCamera.x, -renderCamera.y);
     for (const orb of this.xpOrbs) orb.render(this.ctx);
     for (const orb of this.goldOrbs) orb.render(this.ctx);
@@ -490,27 +496,23 @@ export class Game {
     this.ctx.restore();
   }
 
-  renderArena(renderCamera = this.getRenderCamera()) {
+  renderArena(renderCamera = this.getRenderCamera(), viewWidth = this.getViewWidth(), viewHeight = this.getViewHeight()) {
     const ctx = this.ctx;
     ctx.save();
     ctx.fillStyle = "#b8abae";
-    ctx.fillRect(0, 0, this.width, this.height);
+    ctx.fillRect(0, 0, viewWidth, viewHeight);
 
     const grid = 54;
     const startX = -(((renderCamera.x % grid) + grid) % grid);
     const startY = -(((renderCamera.y % grid) + grid) % grid);
 
-    for (let y = startY - grid; y < this.height + grid; y += grid) {
-      for (let x = startX - grid; x < this.width + grid; x += grid) {
+    for (let y = startY - grid; y < viewHeight + grid; y += grid) {
+      for (let x = startX - grid; x < viewWidth + grid; x += grid) {
         const worldX = Math.floor((x + renderCamera.x) / grid);
         const worldY = Math.floor((y + renderCamera.y) / grid);
         const offset = (worldX + worldY) % 2 === 0 ? 0 : 9;
         this.drawStoneTile(ctx, x + offset, y, grid, worldX, worldY);
       }
-    }
-
-    if (this.waveManager.currentWave) {
-      this.renderObjectivePanel(ctx);
     }
     ctx.restore();
   }
@@ -534,36 +536,13 @@ export class Game {
     ctx.restore();
   }
 
-  renderObjectivePanel(ctx) {
-    const text = this.waveManager.getObjectiveText();
-    const x = 18;
-    const y = Math.min(this.height - 74, 236);
-    const width = Math.min(420, this.width - 36);
-    const height = 42;
-
-    ctx.save();
-    ctx.fillStyle = "rgba(20, 25, 34, 0.86)";
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.32)";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.roundRect(x, y, width, height, 8);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "800 17px Segoe UI, sans-serif";
-    ctx.textBaseline = "middle";
-    ctx.fillText(text, x + 14, y + height / 2);
-    ctx.restore();
-  }
-
   updateCamera() {
     if (!this.player) {
       return;
     }
 
-    this.camera.x = this.player.x - this.width / 2;
-    this.camera.y = this.player.y - this.height / 2;
+    this.camera.x = this.player.x - this.getViewWidth() / 2;
+    this.camera.y = this.player.y - this.getViewHeight() / 2;
   }
 
   getRenderCamera() {
@@ -586,5 +565,17 @@ export class Game {
     if (this.state === GameState.REWARD_SELECT) {
       this.openRewardSelect();
     }
+  }
+
+  getRenderScale() {
+    return this.width <= 720 ? 0.72 : 1;
+  }
+
+  getViewWidth() {
+    return this.width / this.getRenderScale();
+  }
+
+  getViewHeight() {
+    return this.height / this.getRenderScale();
   }
 }
