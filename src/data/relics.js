@@ -1,0 +1,51 @@
+export const relicData = {
+  powerCore: {
+    id: "powerCore",
+    name: "출력 코어",
+    rarity: "silver",
+    description: "무기 공격력 +15%",
+    effect: { stat: "damageMultiplier", op: "multiply", value: 1.15 },
+  },
+  quickGear: {
+    id: "quickGear",
+    name: "급속 기어",
+    rarity: "silver",
+    description: "무기 공격속도 +15%",
+    effect: { stat: "attackSpeedMultiplier", op: "multiply", value: 1.15 },
+  },
+  wideLens: {
+    id: "wideLens",
+    name: "확장 렌즈",
+    rarity: "silver",
+    description: "범위형 무기 범위 +18%",
+    effect: { stat: "areaMultiplier", op: "multiply", value: 1.18 },
+  },
+  splitter: {
+    id: "splitter",
+    name: "분열 탄창",
+    rarity: "gold",
+    description: "투사체 무기 투사체 수 +1",
+    effect: { stat: "projectileCountBonus", op: "add", value: 1 },
+  },
+  lightBoots: {
+    id: "lightBoots",
+    name: "경량 장화",
+    rarity: "bronze",
+    description: "이동속도 +12%",
+    effect: { stat: "moveSpeedMultiplier", op: "multiply", value: 1.12 },
+  },
+  bloodCharm: {
+    id: "bloodCharm",
+    name: "생명 부적",
+    rarity: "bronze",
+    description: "최대 HP +25",
+    effect: { stat: "maxHp", op: "add", value: 25 },
+  },
+  magnetStone: {
+    id: "magnetStone",
+    name: "자력석",
+    rarity: "bronze",
+    description: "경험치 흡수 범위 +35%",
+    effect: { stat: "xpPickupMultiplier", op: "multiply", value: 1.35 },
+  },
+};

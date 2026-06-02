@@ -1,0 +1,938 @@
+:root {
+  color-scheme: dark;
+  font-family:
+    Inter, "Segoe UI", "Noto Sans KR", system-ui, -apple-system, sans-serif;
+  background: #111318;
+  color: #f5f7fb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  background:
+    radial-gradient(circle at 50% 40%, rgba(58, 89, 93, 0.24), transparent 34%),
+    linear-gradient(135deg, #161920, #0d1015 65%, #11151b);
+}
+
+#app {
+  position: relative;
+}
+
+#gameCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.hud {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  width: min(960px, calc(100vw - 24px));
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr;
+  gap: 8px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.bar-panel,
+.stat-grid,
+.weapon-panel {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(45, 55, 78, 0.9);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(10px);
+}
+
+.bar-panel {
+  min-height: 76px;
+}
+
+.bar-panel {
+  padding: 10px;
+}
+
+.bar-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+  color: #d8deea;
+  font-size: 13px;
+}
+
+.bar {
+  height: 18px;
+  overflow: hidden;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  background: #1d2535;
+}
+
+.bar-fill {
+  height: 100%;
+  width: 0%;
+  transition: width 120ms linear;
+}
+
+.hp-fill {
+  background: linear-gradient(90deg, #e85858, #ff9a64);
+}
+
+.xp-fill {
+  background: linear-gradient(90deg, #4fb5ff, #77e6be);
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 10px;
+  gap: 8px;
+  min-height: 118px;
+}
+
+.stat-grid div {
+  min-width: 0;
+}
+
+.stat-grid span,
+.weapon-panel > span {
+  display: block;
+  color: #c7d0df;
+  font-size: 11px;
+}
+
+.stat-grid strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 18px;
+  color: #ffffff;
+  text-shadow: 0 2px 0 #171b25;
+  min-height: 22px;
+  white-space: nowrap;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+#positionText {
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.weapon-panel {
+  padding: 10px;
+  min-height: 88px;
+}
+
+#weaponList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0;
+  margin: 8px 0 0;
+  list-style: none;
+}
+
+#weaponList li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 5px 8px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #f2f5f9;
+  font-size: 12px;
+}
+
+#weaponList li.weapon-chip {
+  position: relative;
+  padding: 4px;
+  border-radius: 10px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+#weaponList li.weapon-chip:hover,
+#weaponList li.weapon-chip:focus-visible {
+  border-color: #8ee7c4;
+  outline: none;
+  background: rgba(142, 231, 196, 0.14);
+}
+
+.weapon-level {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  min-width: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 999px;
+  padding: 1px 4px;
+  background: #111722;
+  color: #f7fbff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.weapon-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border: 2px solid rgba(255, 255, 255, 0.58);
+  border-radius: 8px;
+  background: linear-gradient(145deg, #253148, #121926);
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.18);
+}
+
+.weapon-icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.weapon-icon .metal {
+  fill: #e9eef5;
+  stroke: #333b4a;
+  stroke-width: 2;
+}
+
+.weapon-icon .metal.alt {
+  fill: #b9c4d2;
+}
+
+.weapon-icon .wood {
+  fill: #e19b42;
+  stroke: #5d3b1f;
+  stroke-width: 2;
+}
+
+.weapon-icon .dark {
+  fill: #293042;
+  stroke: #111723;
+  stroke-width: 2;
+}
+
+.weapon-icon .shine {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.72;
+}
+
+.weapon-icon .aura {
+  fill: rgba(147, 205, 255, 0.2);
+  stroke: #89b8ff;
+  stroke-width: 2;
+}
+
+.weapon-icon .blade {
+  fill: #e9eef5;
+  stroke: #394357;
+  stroke-width: 2;
+}
+
+.weapon-icon .blade.alt {
+  fill: #bcd8ff;
+}
+
+.weapon-icon .core {
+  fill: #8d6cff;
+  stroke: #31234f;
+  stroke-width: 2;
+}
+
+.weapon-icon .muzzle {
+  fill: #1c2230;
+  stroke: #e9eef5;
+  stroke-width: 2;
+}
+
+.weapon-icon-pistol {
+  background: linear-gradient(145deg, #24314a, #121926);
+}
+
+.weapon-icon-shotgun {
+  background: linear-gradient(145deg, #33251b, #141017);
+}
+
+.weapon-icon-orbitBlade {
+  background: radial-gradient(circle, #34265f, #151728 70%);
+}
+
+#relicList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0;
+  margin: 8px 0 0;
+  list-style: none;
+}
+
+#relicList li {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  border: 2px solid #7ce2ba;
+  border-radius: 8px;
+  padding: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #eef3f8;
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.relic-level {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  min-width: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 999px;
+  padding: 1px 5px;
+  background: #10221b;
+  color: #8ee7c4;
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1.2;
+  text-align: center;
+}
+
+#relicList li strong,
+#relicList li span {
+  display: block;
+}
+
+#relicList li:focus-visible {
+  outline: 2px solid #7ce2ba;
+  outline-offset: 3px;
+}
+
+#relicList li.rarity-bronze {
+  border-color: #c8864a;
+}
+
+#relicList li.rarity-silver {
+  border-color: #c9d4df;
+}
+
+#relicList li.rarity-gold {
+  border-color: #f2c84b;
+  box-shadow: 0 0 16px rgba(242, 200, 75, 0.16);
+}
+
+#relicList li.empty-relic {
+  display: block;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #eef3f8;
+  cursor: default;
+  pointer-events: none;
+}
+
+.relic-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: linear-gradient(145deg, #263044, #121926);
+}
+
+.relic-icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.relic-icon .plate,
+.relic-icon .gear,
+.relic-icon .boot,
+.relic-icon .magnet {
+  fill: #43506b;
+  stroke: #e9eef5;
+  stroke-width: 2;
+}
+
+.relic-icon .glow,
+.relic-icon .core,
+.relic-icon .lens {
+  fill: #8ee7c4;
+  stroke: #1d7866;
+  stroke-width: 2;
+}
+
+.relic-icon .spark,
+.relic-icon .handle {
+  fill: none;
+  stroke: #fff2a3;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.relic-icon .gold-dot {
+  fill: #f2c84b;
+  stroke: #8b6422;
+  stroke-width: 2;
+}
+
+.part-panel {
+  border-color: rgba(255, 191, 117, 0.24);
+}
+
+#partList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0;
+  margin: 8px 0 0;
+  list-style: none;
+}
+
+#partList li {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  border: 2px dashed rgba(255, 191, 117, 0.78);
+  border-radius: 8px;
+  padding: 3px;
+  background: rgba(255, 184, 94, 0.1);
+  color: #eef3f8;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+#partList li:hover,
+#partList li:focus-visible {
+  outline: none;
+  border-color: #ffdb9b;
+  background: rgba(255, 184, 94, 0.18);
+}
+
+#partList li.rarity-bronze {
+  border-color: #c8864a;
+}
+
+#partList li.rarity-silver {
+  border-color: #c9d4df;
+}
+
+#partList li.rarity-gold {
+  border-color: #f2c84b;
+  box-shadow: 0 0 16px rgba(242, 200, 75, 0.14);
+}
+
+#partList li.empty-part {
+  display: block;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #eef3f8;
+  cursor: default;
+  pointer-events: none;
+}
+
+.part-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background:
+    linear-gradient(135deg, rgba(255, 184, 94, 0.32), transparent 52%),
+    #1c2230;
+}
+
+.part-icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.part-icon .part-shell {
+  fill: #344057;
+  stroke: #f2c184;
+  stroke-width: 2;
+}
+
+.part-icon .part-core {
+  fill: #9bdcff;
+  stroke: #315d77;
+  stroke-width: 2;
+}
+
+.part-icon .part-core.heat {
+  fill: #ff835f;
+  stroke: #7a2b28;
+}
+
+.part-icon .part-core.electric {
+  fill: #fff07a;
+  stroke: #7e6d1d;
+}
+
+.part-icon .part-core.edge {
+  fill: #f0f5ff;
+  stroke: #566076;
+}
+
+.part-icon .part-line {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.82;
+}
+
+.part-level {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  max-width: 54px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 999px;
+  padding: 1px 5px;
+  background: #221a10;
+  color: #ffdb9b;
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.relic-icon .heart {
+  fill: #e85858;
+  stroke: #6f1d29;
+  stroke-width: 2;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(7, 9, 12, 0.56);
+  backdrop-filter: blur(5px);
+}
+
+.panel {
+  width: min(820px, 100%);
+  max-height: min(760px, calc(100vh - 40px));
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  padding: clamp(20px, 4vw, 34px);
+  background: rgba(18, 22, 29, 0.94);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+}
+
+.panel h1 {
+  margin: 0;
+  font-size: clamp(28px, 6vw, 54px);
+  letter-spacing: 0;
+}
+
+.panel p {
+  margin: 12px 0 0;
+  color: #c4ccd8;
+  line-height: 1.6;
+}
+
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.choice-card {
+  min-height: 168px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: left;
+  background: #1c222c;
+  color: inherit;
+  cursor: pointer;
+}
+
+.choice-card:hover,
+.choice-card:focus-visible {
+  border-color: #7ce2ba;
+  outline: none;
+  background: #222a35;
+}
+
+.choice-card.rarity-bronze {
+  border-color: rgba(200, 134, 74, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(200, 134, 74, 0.22);
+}
+
+.choice-card.rarity-silver {
+  border-color: rgba(201, 212, 223, 0.78);
+  box-shadow: inset 0 0 0 1px rgba(201, 212, 223, 0.24);
+}
+
+.choice-card.rarity-gold {
+  border-color: rgba(242, 200, 75, 0.92);
+  box-shadow:
+    inset 0 0 0 1px rgba(242, 200, 75, 0.28),
+    0 0 24px rgba(242, 200, 75, 0.12);
+}
+
+.choice-card.reward-relic {
+  background:
+    linear-gradient(90deg, rgba(74, 201, 161, 0.16), transparent 42%),
+    #1c222c;
+  border-style: solid;
+}
+
+.choice-card.reward-part {
+  background:
+    linear-gradient(90deg, rgba(255, 184, 94, 0.16), transparent 42%),
+    #1c222c;
+  border-style: dashed;
+}
+
+.choice-card.reward-relic:hover,
+.choice-card.reward-relic:focus-visible {
+  border-color: #8ee7c4;
+}
+
+.choice-card.reward-part:hover,
+.choice-card.reward-part:focus-visible {
+  border-color: #ffbf75;
+}
+
+.choice-card h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.choice-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.choice-heading h2 {
+  margin: 0;
+  flex: 1;
+}
+
+.rarity-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border-radius: 999px;
+  padding: 0 9px;
+  color: #141820;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.rarity-badge.rarity-bronze {
+  background: #c8864a;
+}
+
+.rarity-badge.rarity-silver {
+  background: #c9d4df;
+}
+
+.rarity-badge.rarity-gold {
+  background: #f2c84b;
+}
+
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  padding: 0 8px;
+  color: #f7fbff;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.type-badge.type-relic {
+  background: rgba(74, 201, 161, 0.28);
+  border-color: rgba(142, 231, 196, 0.64);
+}
+
+.type-badge.type-part {
+  background: rgba(255, 184, 94, 0.24);
+  border-color: rgba(255, 191, 117, 0.72);
+}
+
+.choice-card p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.choice-card small {
+  display: block;
+  margin-top: 12px;
+  color: #9ba6b6;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.primary-button {
+  margin-top: 22px;
+  min-height: 48px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 22px;
+  background: #7ce2ba;
+  color: #10141a;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.primary-button:hover,
+.primary-button:focus-visible {
+  outline: none;
+  background: #98f0ce;
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 20;
+  width: min(320px, calc(100vw - 24px));
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(16, 20, 29, 0.96);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  color: #f7fbff;
+  pointer-events: none;
+}
+
+.tooltip strong,
+.tooltip em,
+.tooltip small {
+  display: block;
+}
+
+.tooltip em {
+  margin-top: 4px;
+  color: #f2c84b;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.tooltip p {
+  margin: 6px 0;
+  color: #cdd7e5;
+  line-height: 1.45;
+}
+
+.tooltip small {
+  color: #8ee7c4;
+  line-height: 1.4;
+}
+
+.tooltip-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+  margin: 10px 0;
+}
+
+.tooltip-stats div {
+  min-width: 0;
+}
+
+.tooltip-stats dt {
+  color: #9ba6b6;
+  font-size: 11px;
+}
+
+.tooltip-stats dd {
+  margin: 1px 0 0;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.tooltip-section {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.tooltip-section b {
+  display: block;
+  color: #f7fbff;
+  font-size: 12px;
+}
+
+.tooltip-section ul {
+  display: grid;
+  gap: 6px;
+  padding: 0;
+  margin: 7px 0 0;
+  list-style: none;
+}
+
+.tooltip-section li {
+  padding: 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.tooltip-section li strong {
+  display: block;
+  font-size: 12px;
+}
+
+.tooltip-section li span {
+  display: block;
+  margin-top: 2px;
+  color: #cdd7e5;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.tooltip-section li small {
+  margin-top: 3px;
+  color: #ffbf75;
+  font-size: 11px;
+}
+
+.tooltip-section li.empty-row {
+  color: #9ba6b6;
+  font-size: 12px;
+}
+
+.tooltip-section.part-tags div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.tooltip-section.part-tags span {
+  border: 1px solid rgba(255, 191, 117, 0.45);
+  border-radius: 999px;
+  padding: 2px 7px;
+  background: rgba(255, 184, 94, 0.12);
+  color: #ffdb9b;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.touch-controls {
+  position: absolute;
+  left: 24px;
+  bottom: 24px;
+  z-index: 8;
+  display: none;
+  width: 132px;
+  height: 132px;
+  pointer-events: none;
+}
+
+.touch-stick {
+  position: absolute;
+  inset: 0;
+  border: 3px solid rgba(255, 255, 255, 0.52);
+  border-radius: 50%;
+  background: rgba(17, 23, 34, 0.34);
+  box-shadow:
+    inset 0 0 24px rgba(255, 255, 255, 0.08),
+    0 12px 34px rgba(0, 0, 0, 0.28);
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.touch-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 58px;
+  height: 58px;
+  border: 2px solid rgba(255, 255, 255, 0.72);
+  border-radius: 50%;
+  background: rgba(38, 48, 68, 0.92);
+  transform: translate(-50%, -50%);
+  box-shadow: inset 0 0 18px rgba(255, 255, 255, 0.1);
+}
+
+body.touch-active .touch-controls {
+  display: block;
+}
+
+body.touch-active .overlay:not(.hidden) ~ .touch-controls,
+.overlay:not(.hidden) + .tooltip + .touch-controls {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .choice-grid,
+  .stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hud {
+    top: 8px;
+    left: 8px;
+    transform: none;
+    width: calc(100vw - 16px);
+    grid-template-columns: 1fr;
+  }
+
+  .choice-card {
+    min-height: 132px;
+  }
+}
+
+@media (pointer: coarse), (max-width: 820px) {
+  .touch-controls {
+    display: block;
+  }
+
+  .hud {
+    pointer-events: none;
+  }
+
+  .overlay:not(.hidden) ~ .touch-controls,
+  .overlay:not(.hidden) + .tooltip + .touch-controls {
+    display: none;
+  }
+}

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>도요새 서바이버 MVP</title>
+    <link rel="stylesheet" href="./style.css?v=mobile-pages" />
+  </head>
+  <body>
+    <main id="app">
+      <canvas id="gameCanvas"></canvas>
+
+      <section id="hud" class="hud hidden">
+        <div class="bar-panel">
+          <div class="bar-label">
+            <span>HP</span>
+            <span id="hpText">100 / 100</span>
+          </div>
+          <div class="bar"><div id="hpFill" class="bar-fill hp-fill"></div></div>
+        </div>
+
+        <div class="bar-panel">
+          <div class="bar-label">
+            <span>EXP</span>
+            <span id="xpText">0 / 8</span>
+          </div>
+          <div class="bar"><div id="xpFill" class="bar-fill xp-fill"></div></div>
+        </div>
+
+        <div class="stat-grid">
+          <div><span>레벨</span><strong id="levelText">1</strong></div>
+          <div><span>골드</span><strong id="goldText">0</strong></div>
+          <div><span>웨이브</span><strong id="waveText">0</strong></div>
+          <div><span>처치</span><strong id="killText">0</strong></div>
+          <div><span>시간</span><strong id="timeText">0.0s</strong></div>
+          <div><span>좌표</span><strong id="positionText">0, 0</strong></div>
+        </div>
+
+        <div class="weapon-panel">
+          <span>무기</span>
+          <ul id="weaponList"></ul>
+        </div>
+
+        <div class="weapon-panel">
+          <span>유물</span>
+          <ul id="relicList"></ul>
+        </div>
+
+        <div class="weapon-panel part-panel">
+          <span>개조 파츠</span>
+          <ul id="partList"></ul>
+        </div>
+      </section>
+
+      <section id="overlay" class="overlay">
+        <div class="panel">
+          <h1 id="overlayTitle">도요새 서바이버</h1>
+          <p id="overlayDescription">
+            자동 공격으로 적을 버티고, 웨이브 보상과 레벨업 선택으로 빌드를 키우세요.
+          </p>
+          <div id="choiceGrid" class="choice-grid"></div>
+          <button id="primaryButton" class="primary-button">시작</button>
+        </div>
+      </section>
+
+      <aside id="tooltip" class="tooltip hidden"></aside>
+
+      <div id="touchControls" class="touch-controls" aria-hidden="true">
+        <div id="touchStick" class="touch-stick">
+          <div id="touchKnob" class="touch-knob"></div>
+        </div>
+      </div>
+    </main>
+
+    <script type="module" src="./src/main.js?v=mobile-pages"></script>
+  </body>
+</html>
