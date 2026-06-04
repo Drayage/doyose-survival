@@ -21,32 +21,80 @@ export class Enemy {
     this.rewardGold = Math.max(1, Math.round(data.rewardGold * (modifier.goldMultiplier ?? 1)));
     this.goldDropChance = data.goldDropChance;
     this.color = data.color;
+    this.modifier = modifier;
     this.contactCooldown = 0;
     this.isDead = false;
     this.isGhost = Boolean(modifier.isGhost);
   }
 
   update(deltaTime, game) {
-    const direction = normalize(game.player.x - this.x, game.player.y - this.y);
-    this.x += direction.x * this.speed * deltaTime;
-    this.y += direction.y * this.speed * deltaTime;
+    const escortTarget = game.getEscortObject?.();
+    const target =
+      escortTarget && Math.hypot(escortTarget.x - this.x, escortTarget.y - this.y) < 420
+        ? escortTarget
+        : game.player;
+    const direction = normalize(target.x - this.x, target.y - this.y);
+    const hpMissingRatio = 1 - clamp(this.hp / this.maxHp, 0, 1);
+    const frenzySpeed = 1 + hpMissingRatio * (this.modifier.lowHpSpeedBoost ?? 0);
+    const auraSpeed = game.getEnemyMoveAuraMultiplier?.(this) ?? 1;
+    this.x += direction.x * this.speed * frenzySpeed * auraSpeed * deltaTime;
+    this.y += direction.y * this.speed * frenzySpeed * auraSpeed * deltaTime;
     this.contactCooldown = Math.max(0, this.contactCooldown - deltaTime);
 
     const touchingPlayer =
       Math.hypot(this.x - game.player.x, this.y - game.player.y) <=
       this.radius + game.player.hitRadius;
+    const touchingEscort =
+      escortTarget &&
+      Math.hypot(this.x - escortTarget.x, this.y - escortTarget.y) <= this.radius + escortTarget.radius;
 
     if (!this.isGhost && touchingPlayer && this.contactCooldown <= 0) {
       game.player.takeDamage(this.damage);
+      if (this.modifier.lifeStealOnHit) {
+        this.hp = Math.min(this.maxHp, this.hp + this.damage * this.modifier.lifeStealOnHit);
+      }
+      this.contactCooldown = 0.65;
+    }
+
+    if (!this.isGhost && touchingEscort && this.contactCooldown <= 0) {
+      escortTarget.takeDamage(this.damage, game, { source: "enemy" });
       this.contactCooldown = 0.65;
     }
   }
 
-  takeDamage(amount) {
-    this.hp -= amount;
+  takeDamage(amount, context = {}) {
+    let finalAmount = amount;
+    const modifier = this.modifier ?? {};
+
+    if (context.source === "projectile" && modifier.frontalProjectileReduction) {
+      const incomingX = context.vx ?? 0;
+      const incomingY = context.vy ?? 0;
+      const toPlayer = normalize(context.originX - this.x, context.originY - this.y);
+      const incoming = normalize(incomingX, incomingY);
+      const dot = incoming.x * toPlayer.x + incoming.y * toPlayer.y;
+      if (dot > 0.35) {
+        finalAmount *= modifier.frontalProjectileReduction;
+      }
+    }
+
+    if (context.damageType === "explosive" && modifier.explosiveDamageTakenMultiplier) {
+      finalAmount *= modifier.explosiveDamageTakenMultiplier;
+    }
+
+    if (modifier.genericDamageTakenMultiplier && context.damageType !== "pierce") {
+      finalAmount *= modifier.genericDamageTakenMultiplier;
+    }
+
+    if (context.damageType === "pierce" && modifier.pierceDamageTakenMultiplier) {
+      finalAmount *= modifier.pierceDamageTakenMultiplier;
+    }
+
+    this.hp -= finalAmount;
     if (this.hp <= 0) {
       this.isDead = true;
     }
+
+    return finalAmount;
   }
 
   becomeGhost() {
@@ -94,7 +142,7 @@ export class Enemy {
     const scale = this.radius / 16;
     ctx.save();
     ctx.scale(scale, scale);
-    ctx.fillStyle = this.type === "brute" ? "#8d9d89" : "#9ec08e";
+    ctx.fillStyle = this.color ?? (this.type === "brute" ? "#8d9d89" : "#9ec08e");
     ctx.strokeStyle = "#24242a";
     ctx.lineWidth = 2;
     ctx.beginPath();

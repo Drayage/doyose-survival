@@ -1,6 +1,7 @@
-import { weaponData } from "./data/weapons.js";
-import { describeApplicablePassives, describeUpgrade, describeWeaponStats } from "./Weapon.js";
-import { getWeaponIconMarkup } from "./WeaponIcon.js";
+import { weaponData } from "./data/weapons.js?v=text-refactor-2";
+import { UI_TEXT } from "./data/uiText.js";
+import { describeApplicablePassives, describeUpgrade, describeWeaponStats } from "./Weapon.js?v=text-refactor-2";
+import { getWeaponIconMarkup } from "./WeaponIcon.js?v=text-refactor-2";
 
 export class LevelUpManager {
   constructor(game) {
@@ -17,7 +18,7 @@ export class LevelUpManager {
           type: "upgrade",
           weaponId: weapon.id,
           icon: getWeaponIconMarkup(weapon.id),
-          title: `${weapon.name} 강화`,
+          title: `${weapon.name} ${UI_TEXT.buttons.upgrade}`,
           description: `Lv.${weapon.level} → Lv.${weapon.level + 1}`,
           detail: describeUpgrade(weapon, this.game.player),
         });
@@ -30,9 +31,9 @@ export class LevelUpManager {
           type: "newWeapon",
           weaponId: data.id,
           icon: getWeaponIconMarkup(data.id),
-          title: `${data.name} 획득`,
+          title: `${data.name} ${UI_TEXT.buttons.acquire}`,
           description: data.description,
-          detail: `${describeWeaponStats(data.id, this.game.player, 1)}\n적용 패시브: ${describeApplicablePassives(data.id)}\n파츠 슬롯: 0 / 3`,
+          detail: `${describeWeaponStats(data.id, this.game.player, 1)}\n${UI_TEXT.levelUp.applicablePassives}: ${describeApplicablePassives(data.id)}\n${UI_TEXT.levelUp.partSlots}: 0 / 3`,
         });
       }
     }

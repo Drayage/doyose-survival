@@ -1,15 +1,21 @@
 import { Enemy } from "./Enemy.js";
 import { DamageText } from "./DamageText.js";
+import { BossEnemy } from "./BossEnemy.js?v=text-refactor-2";
+import { EliteEnemy } from "./EliteEnemy.js?v=text-refactor-2";
 import { GoldOrb } from "./GoldOrb.js";
-import { LevelUpManager } from "./LevelUpManager.js";
+import { Hazard } from "./Hazard.js";
+import { LevelUpManager } from "./LevelUpManager.js?v=text-refactor-2";
+import { MapObject } from "./MapObject.js";
 import { PartManager } from "./PartManager.js";
 import { Player } from "./Player.js";
 import { RelicManager } from "./RelicManager.js";
-import { UIManager } from "./UIManagerDetails.js";
-import { WaveManager } from "./WaveManager.js?v=mobile-pages";
-import { Weapon } from "./Weapon.js";
+import { UIManager } from "./UIManagerDetails.js?v=weapon-effects-1";
+import { VisualEffect } from "./VisualEffect.js?v=weapon-effects-1";
+import { WaveManager } from "./WaveManager.js?v=text-refactor-2";
+import { Weapon } from "./Weapon.js?v=weapon-effects-1";
 import { XPOrb } from "./XPOrb.js";
-import { circleCollision, randomBetween } from "./utils.js";
+import { randomBetween } from "./utils.js";
+import { mapObjectData } from "./data/mapObjects.js";
 
 export const GameState = {
   START: "start",
@@ -31,6 +37,21 @@ export class Game {
     this.state = GameState.START;
     this.lastTime = 0;
     this.camera = { x: 0, y: 0 };
+    this.targetMode = "nearest";
+    this.targetLockEnabled = false;
+    this.lockedTarget = null;
+    this.currentAutoAttackTarget = null;
+    this.fps = 0;
+    this.frameAccumulator = 0;
+    this.frameCount = 0;
+    this.limits = {
+      maxProjectiles: 240,
+      maxHazards: 90,
+      maxXpOrbs: 180,
+      maxGoldOrbs: 140,
+      maxMapObjects: 34,
+      maxVisualEffects: 160,
+    };
     this.input = {
       up: false,
       down: false,
@@ -51,6 +72,9 @@ export class Game {
     this.player = new Player(this);
     this.enemies = [];
     this.projectiles = [];
+    this.hazards = [];
+    this.mapObjects = [];
+    this.visualEffects = [];
     this.damageTexts = [];
     this.xpOrbs = [];
     this.goldOrbs = [];
@@ -60,6 +84,8 @@ export class Game {
     this.partManager = new PartManager(this);
     this.pendingLevelUps = 0;
     this.waveRewardPending = false;
+    this.lockedTarget = null;
+    this.currentAutoAttackTarget = null;
     this.addWeapon("pistol");
   }
 
@@ -161,6 +187,7 @@ export class Game {
     this.state = GameState.WAVE_SELECT;
     this.prepareWaveTransitionEntities();
     this.pruneDistantPickups();
+    this.pruneDistantMapObjects();
     this.ui.showWaveChoices(this.waveManager.createWaveChoices(), (wave) => this.startWave(wave));
     this.ui.updateHud();
   }
@@ -169,13 +196,17 @@ export class Game {
     this.state = GameState.PLAYING;
     this.clearCombatEntities({ keepPickups: true, keepGhosts: true });
     this.pruneDistantPickups();
+    this.pruneDistantMapObjects();
     this.waveManager.startWave(wave);
+    this.spawnAmbientObjects();
     this.ui.hideOverlay();
   }
 
   clearCombatEntities({ keepPickups = false, keepGhosts = false } = {}) {
     this.enemies = keepGhosts ? this.enemies.filter((enemy) => enemy.isGhost) : [];
     this.projectiles = [];
+    this.hazards = [];
+    this.visualEffects = [];
     this.damageTexts = [];
     if (!keepPickups) {
       this.xpOrbs = [];
@@ -201,6 +232,8 @@ export class Game {
 
     this.enemies = ghosts;
     this.projectiles = [];
+    this.hazards = [];
+    this.visualEffects = [];
     this.damageTexts = [];
   }
 
@@ -213,6 +246,12 @@ export class Game {
     );
   }
 
+  pruneDistantMapObjects(maxDistance = 1600) {
+    this.mapObjects = this.mapObjects.filter(
+      (object) => object.data.protected || Math.hypot(object.x - this.player.x, object.y - this.player.y) <= maxDistance,
+    );
+  }
+
   addWeapon(id) {
     if (this.player.getWeapon(id)) {
       return;
@@ -221,7 +260,19 @@ export class Game {
   }
 
   addDamageText(x, y, value, color) {
+    if (value === undefined || value === null) {
+      return;
+    }
+
+    if (typeof value === "number" && !Number.isFinite(value)) {
+      return;
+    }
+
     this.damageTexts.push(new DamageText(x, y, value, color));
+  }
+
+  addVisualEffect(options) {
+    this.visualEffects.push(new VisualEffect(options));
   }
 
   requestLevelUp() {
@@ -258,6 +309,12 @@ export class Game {
     const reward = this.waveManager.currentWave?.reward ?? { type: "relic", choices: 3 };
     this.clearCombatEntities({ keepPickups: true });
     this.pruneDistantPickups();
+
+    if (reward.type === "gold") {
+      this.player.gold += reward.amount ?? 80 + this.waveManager.waveNumber * 12;
+      this.showWaveSelect();
+      return;
+    }
 
     if (reward.type === "part") {
       const partChoices = this.partManager.createChoices(reward.choices ?? 3);
@@ -306,8 +363,34 @@ export class Game {
     this.state = GameState.REWARD_SELECT;
     this.ui.showRewardChoices(
       choices.map((choice) => ({ rewardType: "part", item: this.partManager.decoratePart(choice) })),
-      (reward) => this.openPartEquipSelect(reward.item),
+      (reward) => this.openPartAcquisitionSelect(reward.item),
     );
+  }
+
+  openPartAcquisitionSelect(part) {
+    this.state = GameState.PART_EQUIP_SELECT;
+    this.ui.showPartAcquisitionChoices(part, (action) => {
+      if (action === "equip") {
+        this.openPartEquipSelect(part);
+        return;
+      }
+
+      if (action === "replace") {
+        this.openPartExchangeSelect(part);
+        return;
+      }
+
+      if (action === "store") {
+        this.partManager.storePart(part);
+        this.showWaveSelect();
+        return;
+      }
+
+      if (action === "sell") {
+        this.partManager.sellPart(part);
+        this.showWaveSelect();
+      }
+    });
   }
 
   openPartEquipSelect(part) {
@@ -378,6 +461,78 @@ export class Game {
     this.enemies.push(new Enemy(type, x, y, modifier));
   }
 
+  spawnElite(eliteId, modifier) {
+    const position = this.getEdgeSpawnPosition(120);
+    this.enemies.push(new EliteEnemy(eliteId, position.x, position.y, modifier));
+  }
+
+  spawnBoss(bossId, modifier) {
+    const position = this.getEdgeSpawnPosition(220);
+    this.enemies.push(new BossEnemy(bossId, position.x, position.y, modifier));
+    this.waveManager.setBossAlive(true);
+    this.addDamageText(this.player.x, this.player.y - 96, "보스 등장!", "#ff6a55");
+  }
+
+  getEdgeSpawnPosition(margin = 80) {
+    const side = Math.floor(Math.random() * 4);
+    const viewWidth = this.getViewWidth();
+    const viewHeight = this.getViewHeight();
+    const left = this.camera.x;
+    const right = this.camera.x + viewWidth;
+    const top = this.camera.y;
+    const bottom = this.camera.y + viewHeight;
+
+    if (side === 0) return { x: randomBetween(left, right), y: top - margin };
+    if (side === 1) return { x: right + margin, y: randomBetween(top, bottom) };
+    if (side === 2) return { x: randomBetween(left, right), y: bottom + margin };
+    return { x: left - margin, y: randomBetween(top, bottom) };
+  }
+
+  spawnAmbientObjects() {
+    const desired = Math.min(10, 4 + this.waveManager.waveNumber);
+    const weighted = Object.values(mapObjectData).filter((object) => object.spawnWeight > 0);
+    while (this.mapObjects.length < desired) {
+      this.spawnMapObject(this.pickWeightedMapObject(weighted));
+    }
+  }
+
+  pickWeightedMapObject(objects) {
+    const total = objects.reduce((sum, object) => sum + object.spawnWeight, 0);
+    let roll = Math.random() * total;
+    for (const object of objects) {
+      roll -= object.spawnWeight;
+      if (roll <= 0) return object.id;
+    }
+    return objects[0].id;
+  }
+
+  spawnMapObject(type, nearPlayer = false) {
+    const distance = nearPlayer ? randomBetween(160, 360) : randomBetween(340, 1100);
+    const angle = Math.random() * Math.PI * 2;
+    this.mapObjects.push(new MapObject(type, this.player.x + Math.cos(angle) * distance, this.player.y + Math.sin(angle) * distance));
+  }
+
+  spawnCollectibleCache(count = 1) {
+    const existingCaches = this.mapObjects.filter((object) => object.type === "cache" && !object.isDead);
+    for (let i = 0; i < count; i += 1) {
+      const cacheIndex = existingCaches.length + i;
+      const angle = (Math.PI * 2 * cacheIndex) / Math.max(count + existingCaches.length, 5) + randomBetween(-0.22, 0.22);
+      const distance = randomBetween(620, 1250) + (cacheIndex % 2) * 220;
+      const x = this.player.x + Math.cos(angle) * distance;
+      const y = this.player.y + Math.sin(angle) * distance;
+      const tooClose = this.mapObjects.some((object) => object.type === "cache" && Math.hypot(object.x - x, object.y - y) < 360);
+      if (tooClose) {
+        this.mapObjects.push(new MapObject("cache", x + Math.cos(angle + 0.9) * 340, y + Math.sin(angle + 0.9) * 340));
+      } else {
+        this.mapObjects.push(new MapObject("cache", x, y));
+      }
+    }
+  }
+
+  spawnEscortObject() {
+    this.mapObjects.push(new MapObject("beacon", this.player.x + 120, this.player.y - 80));
+  }
+
   getNearestEnemy(x, y) {
     let nearest = null;
     let nearestDistance = Infinity;
@@ -397,13 +552,172 @@ export class Game {
     return nearest;
   }
 
+  setTargetMode(mode) {
+    if (!["nearest", "object", "strongest"].includes(mode)) {
+      return;
+    }
+
+    this.targetMode = mode;
+    this.lockedTarget = null;
+    this.currentAutoAttackTarget = null;
+  }
+
+  setTargetLockEnabled(isEnabled) {
+    this.targetLockEnabled = isEnabled;
+    if (!isEnabled) {
+      this.lockedTarget = null;
+      this.currentAutoAttackTarget = null;
+    }
+  }
+
+  getAutoAttackTarget(x = this.player.x, y = this.player.y) {
+    if (this.targetLockEnabled && this.isTargetValid(this.lockedTarget)) {
+      this.currentAutoAttackTarget = this.lockedTarget;
+      return this.lockedTarget;
+    }
+
+    const target = this.pickAutoAttackTarget(x, y);
+    if (this.targetLockEnabled) {
+      this.lockedTarget = target;
+    }
+    this.currentAutoAttackTarget = target;
+    return target;
+  }
+
+  pickAutoAttackTarget(x, y) {
+    const range = this.getAutoAttackRange();
+    if (this.targetMode === "object") {
+      return this.getNearestMapObject(x, y, range) ?? this.getNearestEnemy(x, y);
+    }
+
+    if (this.targetMode === "strongest") {
+      return this.getStrongestEnemy(x, y, range) ?? this.getNearestEnemy(x, y);
+    }
+
+    return this.getNearestEnemy(x, y);
+  }
+
+  isTargetValid(target) {
+    if (!target || target.isDead) {
+      return false;
+    }
+
+    if (target.targetKind === "object" || target.data) {
+      return (
+        this.mapObjects.includes(target) &&
+        !target.data.collectible &&
+        (this.targetMode !== "object" || this.isInsideAutoAttackRange(target))
+      );
+    }
+
+    return (
+      this.enemies.includes(target) &&
+      !target.isGhost &&
+      (this.targetMode !== "strongest" || this.isInsideAutoAttackRange(target))
+    );
+  }
+
+  getAutoAttackRange() {
+    const ranges = this.player.weapons
+      .filter((weapon) => weapon.type !== "orbit")
+      .map((weapon) => {
+        const stats = weapon.getComputedStats(this.player);
+        return (stats.projectileSpeed || 0) * (weapon.data.projectileLife || 0) + 120;
+      })
+      .filter((range) => range > 0);
+
+    return ranges.length > 0 ? Math.max(...ranges) : 520;
+  }
+
+  isInsideAutoAttackRange(target) {
+    return Math.hypot(target.x - this.player.x, target.y - this.player.y) <= this.getAutoAttackRange();
+  }
+
+  getNearestMapObject(x, y, maxDistance = Infinity) {
+    let nearest = null;
+    let nearestDistance = Infinity;
+
+    for (const object of this.mapObjects) {
+      if (object.isDead || object.data.collectible || object.data.protected) {
+        continue;
+      }
+
+      const dist = Math.hypot(object.x - x, object.y - y);
+      if (dist > maxDistance) {
+        continue;
+      }
+
+      if (dist < nearestDistance) {
+        nearest = object;
+        nearestDistance = dist;
+      }
+    }
+
+    return nearest;
+  }
+
+  getStrongestEnemy(x, y, maxDistance = Infinity) {
+    let strongest = null;
+    let bestScore = -Infinity;
+
+    for (const enemy of this.enemies) {
+      if (enemy.isDead || enemy.isGhost) {
+        continue;
+      }
+
+      const dist = Math.hypot(enemy.x - x, enemy.y - y);
+      if (dist > maxDistance) {
+        continue;
+      }
+
+      const rank = enemy.isBoss ? 100000 : enemy.isElite ? 50000 : 0;
+      const score = rank + enemy.hp + enemy.maxHp * 0.35 - dist * 0.02;
+      if (score > bestScore) {
+        bestScore = score;
+        strongest = enemy;
+      }
+    }
+
+    return strongest;
+  }
+
   getActiveEnemyCount() {
     return this.enemies.filter((enemy) => !enemy.isGhost).length;
+  }
+
+  getActiveEliteCount() {
+    return this.enemies.filter((enemy) => enemy.isElite && !enemy.isDead).length;
+  }
+
+  getCollectibleCount() {
+    return this.mapObjects.filter((object) => object.data.collectible && !object.isDead).length;
+  }
+
+  getEscortObject() {
+    return this.mapObjects.find((object) => object.data.protected && !object.isDead);
+  }
+
+  getLivingBoss() {
+    return this.enemies.find((enemy) => enemy.isBoss && !enemy.isDead);
+  }
+
+  getEnemyMoveAuraMultiplier(enemy) {
+    let multiplier = 1;
+    for (const other of this.enemies) {
+      if (!other.isElite || other.ability !== "aura" || other === enemy || other.isDead) {
+        continue;
+      }
+      if (Math.hypot(other.x - enemy.x, other.y - enemy.y) <= other.eliteData.auraRadius) {
+        multiplier = Math.max(multiplier, other.eliteData.auraSpeedMultiplier ?? 1);
+      }
+    }
+    return multiplier;
   }
 
   loop(timestamp) {
     const deltaTime = Math.min(0.05, (timestamp - this.lastTime) / 1000 || 0);
     this.lastTime = timestamp;
+    this.updatePerformanceStats(deltaTime);
 
     if (this.state === GameState.PLAYING) {
       this.update(deltaTime);
@@ -422,11 +736,15 @@ export class Game {
 
     for (const enemy of this.enemies) enemy.update(deltaTime, this);
     for (const projectile of this.projectiles) projectile.update(deltaTime, this);
+    for (const hazard of this.hazards) hazard.update(deltaTime, this);
+    for (const object of this.mapObjects) object.update(deltaTime, this);
+    for (const effect of this.visualEffects) effect.update(deltaTime);
     for (const orb of this.xpOrbs) orb.update(deltaTime, this);
     for (const orb of this.goldOrbs) orb.update(deltaTime, this);
     for (const text of this.damageTexts) text.update(deltaTime);
 
     this.collectDeaths();
+    this.cleanupEntityOverflow();
 
     if (this.state !== GameState.PLAYING) {
       return;
@@ -442,6 +760,29 @@ export class Game {
     }
   }
 
+  updatePerformanceStats(deltaTime) {
+    this.frameAccumulator += deltaTime;
+    this.frameCount += 1;
+    if (this.frameAccumulator >= 0.5) {
+      this.fps = Math.round(this.frameCount / this.frameAccumulator);
+      this.frameAccumulator = 0;
+      this.frameCount = 0;
+    }
+  }
+
+  cleanupEntityOverflow() {
+    this.projectiles = this.projectiles.slice(-this.limits.maxProjectiles);
+    this.hazards = this.hazards.slice(-this.limits.maxHazards);
+    this.xpOrbs = this.xpOrbs.slice(-this.limits.maxXpOrbs);
+    this.goldOrbs = this.goldOrbs.slice(-this.limits.maxGoldOrbs);
+    this.visualEffects = this.visualEffects.slice(-this.limits.maxVisualEffects);
+
+    const protectedObjects = this.mapObjects.filter((object) => object.data.protected || object.data.collectible);
+    const ambientObjects = this.mapObjects.filter((object) => !object.data.protected && !object.data.collectible);
+    const ambientLimit = Math.max(0, this.limits.maxMapObjects - protectedObjects.length);
+    this.mapObjects = [...protectedObjects, ...ambientObjects.slice(-ambientLimit)];
+  }
+
   collectDeaths() {
     for (const enemy of this.enemies) {
       if (!enemy.isDead || enemy.rewardClaimed) {
@@ -450,17 +791,38 @@ export class Game {
 
       enemy.rewardClaimed = true;
       if (!enemy.isGhost) {
-        this.waveManager.registerKill();
-        this.xpOrbs.push(new XPOrb(enemy.x, enemy.y, enemy.rewardExp));
+        if (enemy.isElite) {
+          this.waveManager.registerEliteKill();
+          this.dropEliteReward(enemy);
+        } else if (enemy.isBoss) {
+          this.waveManager.setBossAlive(false);
+          this.dropBossReward(enemy);
+        } else {
+          this.waveManager.registerKill();
+          if (!this.waveManager.shouldSuppressFarmingRewards()) {
+            this.xpOrbs.push(new XPOrb(enemy.x, enemy.y, enemy.rewardExp));
 
-        if (Math.random() <= enemy.goldDropChance) {
-          this.goldOrbs.push(new GoldOrb(enemy.x + randomBetween(-8, 8), enemy.y + randomBetween(-8, 8), enemy.rewardGold));
+            if (Math.random() <= enemy.goldDropChance) {
+              this.goldOrbs.push(new GoldOrb(enemy.x + randomBetween(-8, 8), enemy.y + randomBetween(-8, 8), enemy.rewardGold));
+            }
+          }
+
+          if (enemy.modifier?.splitOnDeath && enemy.radius > 9) {
+            this.spawnSplitEnemies(enemy);
+          }
+        }
+
+        if (enemy.ability === "deathExplosion") {
+          this.explodeAt(enemy.x, enemy.y, enemy.eliteData.explosionRadius, enemy.eliteData.explosionDamage);
         }
       }
     }
 
     this.enemies = this.enemies.filter((enemy) => !enemy.isDead);
     this.projectiles = this.projectiles.filter((projectile) => !projectile.isDead);
+    this.hazards = this.hazards.filter((hazard) => !hazard.isDead);
+    this.mapObjects = this.mapObjects.filter((object) => !object.isDead);
+    this.visualEffects = this.visualEffects.filter((effect) => !effect.isDead);
     this.xpOrbs = this.xpOrbs.filter((orb) => !orb.isDead);
     this.goldOrbs = this.goldOrbs.filter((orb) => !orb.isDead);
     this.damageTexts = this.damageTexts.filter((text) => !text.isDead);
@@ -473,6 +835,89 @@ export class Game {
         this.setGameOver();
       }
     }
+  }
+
+  spawnSplitEnemies(enemy) {
+    const count = 2;
+    for (let i = 0; i < count; i += 1) {
+      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+      const child = new Enemy("runner", enemy.x + Math.cos(angle) * 24, enemy.y + Math.sin(angle) * 24, {
+        ...enemy.modifier,
+        enemyHpMultiplier: (enemy.modifier.enemyHpMultiplier ?? 1) * 0.42,
+        enemyDamageMultiplier: (enemy.modifier.enemyDamageMultiplier ?? 1) * 0.72,
+        enemySpeedMultiplier: (enemy.modifier.enemySpeedMultiplier ?? 1) * 1.2,
+      });
+      child.radius = Math.max(8, child.radius * 0.72);
+      child.rewardExp = 1;
+      child.rewardGold = 0;
+      child.goldDropChance = 0;
+      this.enemies.push(child);
+    }
+  }
+
+  dropEliteReward(enemy) {
+    const reward = enemy.reward ?? {};
+    const exp = reward.exp ?? 10;
+    const gold = reward.gold ?? 30;
+    if (!this.waveManager.shouldSuppressFarmingRewards()) {
+      this.xpOrbs.push(new XPOrb(enemy.x, enemy.y, exp));
+      this.goldOrbs.push(new GoldOrb(enemy.x + 10, enemy.y + 8, gold));
+    }
+    if (!this.waveManager.shouldSuppressFarmingRewards() && (enemy.reward?.type === "part" || enemy.reward?.type === "relic")) {
+      this.mapObjects.push(new MapObject("supplyCrate", enemy.x - 18, enemy.y + 20));
+    }
+    this.addDamageText(enemy.x, enemy.y - enemy.radius - 18, "엘리트 보상", "#ffdb9b");
+  }
+
+  dropBossReward(enemy) {
+    const reward = enemy.reward ?? {};
+    this.player.gold += reward.gold ?? 120;
+    this.xpOrbs.push(new XPOrb(enemy.x, enemy.y, reward.exp ?? 40));
+    this.addDamageText(enemy.x, enemy.y - enemy.radius - 24, "보스 처치!", "#68f2ff");
+
+    if (this.waveManager.currentWave?.reward) {
+      this.waveManager.currentWave.reward = {
+        ...this.waveManager.currentWave.reward,
+        choices: Math.max(this.waveManager.currentWave.reward.choices ?? 3, reward.choices ?? 4),
+        quality: Math.max(this.waveManager.currentWave.reward.quality ?? 1, reward.quality ?? 4),
+      };
+    }
+  }
+
+  explodeAt(x, y, radius, damage) {
+    this.hazards.push(
+      new Hazard({
+        x,
+        y,
+        radius,
+        damage: Math.round(damage * 0.35),
+        duration: 0.32,
+        color: "rgba(255, 183, 74, 0.42)",
+      }),
+    );
+
+    for (const enemy of this.enemies) {
+      if (!enemy.isDead && Math.hypot(enemy.x - x, enemy.y - y) <= enemy.radius + radius) {
+        const dealt = enemy.takeDamage(damage, { source: "explosion", damageType: "explosive" });
+        this.addDamageText(enemy.x, enemy.y - enemy.radius, dealt, "#ffbf75");
+      }
+    }
+  }
+
+  damageEnemiesInRadius(x, y, radius, damage, context = {}, excluded = null, color = "#ffbf75") {
+    let hitCount = 0;
+    for (const enemy of this.enemies) {
+      if (enemy.isDead || enemy === excluded) {
+        continue;
+      }
+
+      if (Math.hypot(enemy.x - x, enemy.y - y) <= enemy.radius + radius) {
+        const dealt = enemy.takeDamage(damage, context);
+        this.addDamageText(enemy.x, enemy.y - enemy.radius, dealt, color);
+        hitCount += 1;
+      }
+    }
+    return hitCount;
   }
 
   render() {
@@ -488,12 +933,77 @@ export class Game {
     this.ctx.translate(-renderCamera.x, -renderCamera.y);
     for (const orb of this.xpOrbs) orb.render(this.ctx);
     for (const orb of this.goldOrbs) orb.render(this.ctx);
+    for (const object of this.mapObjects) object.render(this.ctx);
+    for (const hazard of this.hazards) hazard.render(this.ctx);
     for (const projectile of this.projectiles) projectile.render(this.ctx);
     for (const enemy of this.enemies) enemy.render(this.ctx);
+    for (const effect of this.visualEffects) effect.render(this.ctx);
 
     this.player.render(this.ctx);
     for (const text of this.damageTexts) text.render(this.ctx);
     this.ctx.restore();
+    this.renderObjectiveIndicators(renderCamera, renderScale);
+  }
+
+  renderObjectiveIndicators(renderCamera, renderScale) {
+    if (this.waveManager.currentWave?.type !== "collect") {
+      return;
+    }
+
+    const caches = this.mapObjects.filter((object) => object.type === "cache" && !object.isDead);
+    if (caches.length === 0) {
+      return;
+    }
+
+    const margin = 28;
+    const centerX = this.width / 2;
+    const centerY = this.height / 2;
+    const ctx = this.ctx;
+
+    for (const cache of caches) {
+      const screenX = (cache.x - renderCamera.x) * renderScale;
+      const screenY = (cache.y - renderCamera.y) * renderScale;
+      const isVisible =
+        screenX >= margin &&
+        screenX <= this.width - margin &&
+        screenY >= margin &&
+        screenY <= this.height - margin;
+
+      if (isVisible) {
+        continue;
+      }
+
+      const angle = Math.atan2(screenY - centerY, screenX - centerX);
+      const edgeX = Math.min(this.width - margin, Math.max(margin, centerX + Math.cos(angle) * this.width));
+      const edgeY = Math.min(this.height - margin, Math.max(margin, centerY + Math.sin(angle) * this.height));
+
+      ctx.save();
+      ctx.translate(edgeX, edgeY);
+      ctx.rotate(angle);
+      ctx.fillStyle = "rgba(242, 200, 75, 0.94)";
+      ctx.strokeStyle = "rgba(30, 24, 10, 0.92)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(16, 0);
+      ctx.lineTo(-9, -11);
+      ctx.lineTo(-4, 0);
+      ctx.lineTo(-9, 11);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.rotate(-angle);
+      ctx.fillStyle = "#ffffff";
+      ctx.strokeStyle = "rgba(0,0,0,0.7)";
+      ctx.lineWidth = 3;
+      ctx.font = "800 12px Segoe UI, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      const distance = Math.round(Math.hypot(cache.x - this.player.x, cache.y - this.player.y) / 10) * 10;
+      ctx.strokeText(`${distance}`, 0, 13);
+      ctx.fillText(`${distance}`, 0, 13);
+      ctx.restore();
+    }
   }
 
   renderArena(renderCamera = this.getRenderCamera(), viewWidth = this.getViewWidth(), viewHeight = this.getViewHeight()) {

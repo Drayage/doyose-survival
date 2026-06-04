@@ -2,7 +2,7 @@ export class DamageText {
   constructor(x, y, value, color = "#ffe15a") {
     this.x = x;
     this.y = y;
-    this.value = Math.round(value);
+    this.value = typeof value === "number" ? Math.round(value) : value;
     this.color = color;
     this.life = 0.62;
     this.maxLife = 0.62;

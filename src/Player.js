@@ -45,8 +45,11 @@ export class Player {
       this.visualDirection = direction;
     }
 
-    const target = game.getNearestEnemy(this.x, this.y);
-    if (target && Math.hypot(target.x - this.x, target.y - this.y) > this.radius + target.radius + 18) {
+    const target = game.getAutoAttackTarget(this.x, this.y);
+    const isPriorityTarget = target?.data || target?.isElite || target?.isBoss;
+    const targetDistance = target ? Math.hypot(target.x - this.x, target.y - this.y) : 0;
+    const aimDeadZone = isPriorityTarget ? 0 : this.radius + (target?.radius ?? 0) + 18;
+    if (target && targetDistance > aimDeadZone) {
       this.aimAngle = Math.atan2(target.y - this.y, target.x - this.x);
     } else if (!target) {
       this.aimAngle = this.facingAngle;

@@ -14,14 +14,23 @@ export const rarityData = {
     label: "골드",
     color: "#f2c84b",
   },
+  diamond: {
+    id: "diamond",
+    label: "다이아",
+    color: "#68f2ff",
+  },
 };
 
 export function getRarityByScore(score) {
-  if (score >= 150) {
+  if (score >= 250) {
+    return rarityData.diamond;
+  }
+
+  if (score >= 190) {
     return rarityData.gold;
   }
 
-  if (score >= 120) {
+  if (score >= 145) {
     return rarityData.silver;
   }
 

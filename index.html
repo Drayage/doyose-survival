@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>도요새 서바이버 MVP</title>
-    <link rel="stylesheet" href="./style.css?v=mobile-world-scale" />
+    <link rel="stylesheet" href="./style.css?v=weapon-effects-1" />
   </head>
   <body>
     <main id="app">
@@ -36,6 +36,16 @@
           <div><span>좌표</span><strong id="positionText">0, 0</strong></div>
         </div>
 
+        <div class="target-panel">
+          <span>자동공격</span>
+          <div class="target-controls">
+            <button type="button" data-target-mode="nearest">근접</button>
+            <button type="button" data-target-mode="object">오브젝트</button>
+            <button type="button" data-target-mode="strongest">강적</button>
+          </div>
+          <button id="targetLockButton" class="target-lock" type="button" aria-pressed="false">고정 OFF</button>
+        </div>
+
         <div class="weapon-panel">
           <span>무기</span>
           <ul id="weaponList"></ul>
@@ -54,6 +64,14 @@
 
       <div id="objectivePanel" class="objective-panel hidden"></div>
 
+      <div id="bossBar" class="boss-bar hidden">
+        <div class="boss-bar-label">
+          <span id="bossName">보스</span>
+          <span id="bossHpText">0 / 0</span>
+        </div>
+        <div class="boss-bar-track"><div id="bossHpFill" class="boss-bar-fill"></div></div>
+      </div>
+
       <section id="overlay" class="overlay">
         <div class="panel">
           <h1 id="overlayTitle">도요새 서바이버</h1>
@@ -67,6 +85,8 @@
 
       <aside id="tooltip" class="tooltip hidden"></aside>
 
+      <div id="debugPanel" class="debug-panel" aria-hidden="true"></div>
+
       <div id="touchControls" class="touch-controls" aria-hidden="true">
         <div id="touchStick" class="touch-stick">
           <div id="touchKnob" class="touch-knob"></div>
@@ -74,6 +94,6 @@
       </div>
     </main>
 
-    <script type="module" src="./src/main.js?v=mobile-world-scale"></script>
+    <script type="module" src="./src/main.js?v=weapon-effects-1"></script>
   </body>
 </html>
